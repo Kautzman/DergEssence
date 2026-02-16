@@ -329,13 +329,8 @@ function DergEssence:UpdateRechargeProgress()
         -- Calculate recharge progress
         local currentTime = GetTime()
         local timeSinceLastEssence = currentTime - self.lastEssenceTime
-        local rechargingProgress = timeSinceLastEssence / actualRechargeTime
-        
-        -- Cap progress at 100% to prevent advancing to next bar prematurely
-        -- Keep showing the current recharging bar at 100% until server confirms
-        if rechargingProgress > 1.0 then
-            rechargingProgress = 1.0
-        end
+        -- Cap progress at 100% to prevent visual anomalies while waiting for server confirmation
+        local rechargingProgress = math.min(1.0, timeSinceLastEssence / actualRechargeTime)
         
         -- Show partial fill on the next essence to recharge
         local rechargingIndex = currentEssence + 1
