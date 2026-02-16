@@ -313,7 +313,7 @@ end
 
 -- Helper function to get the rank of a talent by name
 -- Returns the number of points invested in the talent (0 if not taken)
-local function GetTalentRankByName(talentName)
+function GetTalentRankByName(talentName)
     local configId = C_ClassTalents.GetActiveConfigID()
     if not configId then return 0 end
 
@@ -325,15 +325,17 @@ local function GetTalentRankByName(talentName)
             local nodeInfo = C_Traits.GetNodeInfo(configId, nodeId)
 
             if nodeInfo and nodeInfo.activeEntry then
-                local entryInfo = C_Traits.GetEntryInfo(configId, nodeInfo.activeEntry)
-                if entryInfo and entryInfo.definitionID then
-                    local defInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
+                local entryID = nodeInfo.entryIDs[nodeInfo.activeEntry]
+                if entryID then
+                    local entryInfo = C_Traits.GetEntryInfo(configId, entryID)
+                    if entryInfo and entryInfo.definitionID then
+                        local defInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
 
-                    if defInfo and defInfo.spellID then
-                        local name = GetSpellInfo(defInfo.spellID)
-                        if name == talentName then
-                            -- Return the current rank (number of points invested)
-                            return nodeInfo.currentRank or 0
+                        if defInfo and defInfo.spellID then
+                            local name = GetSpellInfo(defInfo.spellID)
+                            if name == talentName then
+                                return nodeInfo.currentRank or 0
+                            end
                         end
                     end
                 end
@@ -344,7 +346,7 @@ local function GetTalentRankByName(talentName)
     return 0
 end
 
-local function IsTalentTakenByName(talentName)
+function IsTalentTakenByName(talentName)
     return GetTalentRankByName(talentName) > 0
 end
 
