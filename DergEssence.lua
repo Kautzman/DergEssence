@@ -119,25 +119,41 @@ function DergEssence:CreateEssenceDisplay()
             bar.background:SetAllPoints()
             bar.background:SetColorTexture(0, 0, 0, 1)  -- Black
             
-            -- Create border
-            bar.border = bar:CreateTexture(nil, "BORDER")
-            bar.border:SetAllPoints()
-            bar.border:SetColorTexture(0.3, 0.3, 0.3, 1)  -- Dark gray border
+            -- Create border frame using four edge textures
+            -- Top border
+            bar.borderTop = bar:CreateTexture(nil, "BORDER")
+            bar.borderTop:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
+            bar.borderTop:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
+            bar.borderTop:SetHeight(1)
+            bar.borderTop:SetColorTexture(0.5, 0.5, 0.5, 1)
+            
+            -- Bottom border
+            bar.borderBottom = bar:CreateTexture(nil, "BORDER")
+            bar.borderBottom:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
+            bar.borderBottom:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
+            bar.borderBottom:SetHeight(1)
+            bar.borderBottom:SetColorTexture(0.5, 0.5, 0.5, 1)
+            
+            -- Left border
+            bar.borderLeft = bar:CreateTexture(nil, "BORDER")
+            bar.borderLeft:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
+            bar.borderLeft:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
+            bar.borderLeft:SetWidth(1)
+            bar.borderLeft:SetColorTexture(0.5, 0.5, 0.5, 1)
+            
+            -- Right border
+            bar.borderRight = bar:CreateTexture(nil, "BORDER")
+            bar.borderRight:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
+            bar.borderRight:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
+            bar.borderRight:SetWidth(1)
+            bar.borderRight:SetColorTexture(0.5, 0.5, 0.5, 1)
             
             -- Create fill texture (light blue when essence available)
             bar.fill = bar:CreateTexture(nil, "ARTWORK")
             bar.fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-            bar.fill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
-            bar.fill:SetWidth(barWidth - 2)  -- Account for border
+            bar.fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -1, 1)
             bar.fill:SetColorTexture(0.4, 0.7, 1, 1)  -- Light blue
             bar.fill:Hide()  -- Initially hidden
-            
-            -- Create partial fill for progress
-            bar.partialFill = bar:CreateTexture(nil, "ARTWORK")
-            bar.partialFill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-            bar.partialFill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
-            bar.partialFill:SetColorTexture(0.4, 0.7, 1, 1)  -- Light blue
-            bar.partialFill:Hide()  -- Initially hidden
             
             self.essenceBars[i] = bar
         end
@@ -157,10 +173,6 @@ function DergEssence:UpdateEssence()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
-    -- Get partial essence (for charging essence)
-    local partialEssence = currentEssence % 1
-    local fullEssence = math.floor(currentEssence)
-    
     -- Update each essence bar
     for i = 1, #self.essenceBars do
         local bar = self.essenceBars[i]
@@ -169,20 +181,12 @@ function DergEssence:UpdateEssence()
             -- Show bar if within max essence
             bar:Show()
             
-            if i <= fullEssence then
+            if i <= currentEssence then
                 -- Full essence - show filled bar
                 bar.fill:Show()
-                bar.partialFill:Hide()
-            elseif i == fullEssence + 1 and partialEssence > 0 then
-                -- Partial essence - show progress fill
-                bar.fill:Hide()
-                bar.partialFill:Show()
-                local fillWidth = (bar:GetWidth() - 2) * partialEssence
-                bar.partialFill:SetWidth(fillWidth)
             else
-                -- Empty essence - hide fills
+                -- Empty essence - hide fill
                 bar.fill:Hide()
-                bar.partialFill:Hide()
             end
         else
             -- Hide bars beyond max essence
