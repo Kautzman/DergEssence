@@ -17,6 +17,8 @@ local MAX_EVOKER_ESSENCE = 6
 local ESSENCE_POWER_TYPE = 19  -- Power type ID for Evoker essence
 local BASE_RECHARGE_TIME = 5.0  -- Base time in seconds for essence to recharge
 local ESSENCE_COLOR = {r = 0.4, g = 0.7, b = 1.0, a = 1.0}  -- Light blue color for essence bars
+local INNATE_MAGIC_TALENT_NAME = "Innate Magic"  -- Talent name for essence regen bonus
+local INNATE_MAGIC_BONUS_PER_RANK = 0.05  -- 5% bonus per rank (5% for 1 point, 10% for 2 points)
 
 -- Frame for event handling
 local frame = CreateFrame("Frame")
@@ -242,6 +244,14 @@ function DergEssence:UpdateRechargeProgress()
         local haste = UnitSpellHaste("player")
         local actualRechargeTime = BASE_RECHARGE_TIME / (1 + haste / 100)
         
+        -- Apply Innate Magic talent bonus (5% per rank)
+        local innateMagicRank = GetTalentRankByName(INNATE_MAGIC_TALENT_NAME)
+        if innateMagicRank > 0 then
+            local talentBonus = innateMagicRank * INNATE_MAGIC_BONUS_PER_RANK
+            -- Increase regen rate = decrease recharge time
+            actualRechargeTime = actualRechargeTime / (1 + talentBonus)
+        end
+        
         -- Calculate recharge progress
         local currentTime = GetTime()
         local timeSinceLastEssence = currentTime - self.lastEssenceTime
@@ -272,12 +282,14 @@ function DergEssence:UpdateRechargeProgress()
     end
 end
 
-local function IsTalentTakenByName(talentName)
+-- Helper function to get the rank of a talent by name
+-- Returns the number of points invested in the talent (0 if not taken)
+local function GetTalentRankByName(talentName)
     local configId = C_ClassTalents.GetActiveConfigID()
-    if not configId then return false end
+    if not configId then return 0 end
 
     local configInfo = C_Traits.GetConfigInfo(configId)
-    if not configInfo then return false end
+    if not configInfo then return 0 end
 
     for _, treeId in ipairs(configInfo.treeIDs) do
         for _, nodeId in ipairs(C_Traits.GetTreeNodes(treeId)) do
@@ -291,7 +303,8 @@ local function IsTalentTakenByName(talentName)
                     if defInfo and defInfo.spellID then
                         local name = GetSpellInfo(defInfo.spellID)
                         if name == talentName then
-                            return true
+                            -- Return the current rank (number of points invested)
+                            return nodeInfo.currentRank or 0
                         end
                     end
                 end
@@ -299,7 +312,11 @@ local function IsTalentTakenByName(talentName)
         end
     end
 
-    return false
+    return 0
+end
+
+local function IsTalentTakenByName(talentName)
+    return GetTalentRankByName(talentName) > 0
 end
 
 -- Slash command handler
