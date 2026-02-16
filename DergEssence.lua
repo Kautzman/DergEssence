@@ -290,7 +290,7 @@ function DergEssence:UpdateEssence()
         -- On first initialization, reset timer
         if essenceGained or wasAtMax or not essenceChanged then
             self.lastEssenceTime = GetTime()
-        elseif essenceSpent and not wasAtMax then
+        elseif essenceSpent then
             -- Essence spent from partial state - carry over progress (don't reset timer)
             -- Timer stays as is to maintain recharge progress
         end
