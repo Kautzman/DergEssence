@@ -230,8 +230,6 @@ function DergEssence:UpdateEssence()
         if not essenceSpent then
             self.lastEssenceTime = GetTime()
         end
-        -- Note: When essence is spent, we intentionally don't update lastEssenceTime
-        -- This carries over the charge progress to the new actively charging essence
         
         self.lastEssenceCount = currentEssence
     end
