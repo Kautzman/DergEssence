@@ -275,6 +275,7 @@ function DergEssence:UpdateEssence()
     if not self.lastEssenceCount or self.lastEssenceCount ~= currentEssence then
         local essenceChanged = self.lastEssenceCount ~= nil
         local essenceSpent = essenceChanged and currentEssence < self.lastEssenceCount
+        local essenceGained = essenceChanged and currentEssence > self.lastEssenceCount
         local wasAtMax = self.lastEssenceCount and self.lastEssenceCount >= maxEssence
         
         -- Hide any active partial fills when essence count changes to prevent race conditions
@@ -283,10 +284,15 @@ function DergEssence:UpdateEssence()
             self.lastRechargingIndex = nil
         end
         
-        -- Carry over progress only when spending from partial state (not from max)
-        -- Reset timer when: gaining essence, at max, or first initialization
-        if not essenceSpent or wasAtMax then
+        -- When essence is gained from API, ALWAYS reset timer to resync with server ground truth
+        -- When essence is spent from max, reset timer (no progress to carry over)
+        -- When essence is spent from partial, keep timer (carry over progress)
+        -- On first initialization, reset timer
+        if essenceGained or wasAtMax or not essenceChanged then
             self.lastEssenceTime = GetTime()
+        elseif essenceSpent and not wasAtMax then
+            -- Essence spent from partial state - carry over progress (don't reset timer)
+            -- Timer stays as is to maintain recharge progress
         end
         
         self.lastEssenceCount = currentEssence
