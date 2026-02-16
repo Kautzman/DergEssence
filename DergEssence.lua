@@ -26,17 +26,24 @@ local function OnEvent(self, event, ...)
         DergEssence:OnEnable()
     elseif event == "PLAYER_LOGOUT" then
         DergEssence:OnDisable()
+    elseif event == "UNIT_POWER_UPDATE" then
+        local unit = ...
+        if unit == "player" then
+            DergEssence:UpdateEssence()
+        end
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        DergEssence:UpdateEssence()
     end
 end
 
 -- Initialize the addon
 function DergEssence:OnInitialize()
-    -- Initialize saved variables
+    -- Initialize saved variables with defaults if they don't exist
     if not DergEssenceDB.initialized then
-        DergEssenceDB = {
-            initialized = true,
-            enabled = true,
-        }
+        DergEssenceDB.initialized = true
+    end
+    if DergEssenceDB.enabled == nil then
+        DergEssenceDB.enabled = true
     end
     
     print("|cFF00FF00DergEssence|r v" .. self.version .. " loaded. Type /dergessence for options.")
@@ -61,7 +68,9 @@ end
 
 -- Disable the addon
 function DergEssence:OnDisable()
-    frame:UnregisterAllEvents()
+    -- Only unregister essence tracking events, keep lifecycle events
+    frame:UnregisterEvent("UNIT_POWER_UPDATE")
+    frame:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end
 
 -- Setup essence tracking for Evokers
@@ -69,6 +78,12 @@ function DergEssence:SetupEssenceTracking()
     -- Essence is power type 19 for Evokers
     -- This is where the main tracking logic would go
     print("|cFF00FF00DergEssence|r: Essence tracking initialized for Evoker.")
+end
+
+-- Update essence display
+function DergEssence:UpdateEssence()
+    -- This is where essence updates would be processed
+    -- Placeholder for actual essence tracking implementation
 end
 
 -- Slash command handler
