@@ -1,0 +1,22 @@
+# WoW Addon specific
+*.bak
+*.old
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.zip
+release/
+
+# Temporary files
+tmp/
+temp/

@@ -1,0 +1,8 @@
+## Interface: 120001
+## Title: DergEssence
+## Notes: Addon for Evokers in WoW to track essence
+## Author: Kautzman
+## Version: 1.0.0
+## SavedVariables: DergEssenceDB
+
+DergEssence.lua
