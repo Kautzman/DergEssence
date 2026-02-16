@@ -318,7 +318,8 @@ function DergEssence:CheckEssenceAfterSpellCast()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     
     -- If there's a mismatch between tracked and actual essence, update the UI
-    if self.lastEssenceCount and self.lastEssenceCount ~= currentEssence then
+    -- Also update if lastEssenceCount is not yet initialized
+    if not self.lastEssenceCount or self.lastEssenceCount ~= currentEssence then
         self:UpdateEssence()
     end
 end
