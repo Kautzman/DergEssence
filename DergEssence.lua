@@ -254,23 +254,24 @@ function DergEssence:UpdateRechargeProgress()
         
         -- Show partial fill on the next essence to recharge
         local rechargingIndex = currentEssence + 1
+        
+        -- Hide previous recharging bar if index changed
+        if self.lastRechargingIndex and self.lastRechargingIndex ~= rechargingIndex then
+            self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
+        end
+        
         if rechargingIndex <= maxEssence then
             local bar = self.essenceBars[rechargingIndex]
             local fillWidth = (bar:GetWidth() - 2) * rechargingProgress  -- Account for border
             bar.partialFill:SetWidth(fillWidth)
             bar.partialFill:Show()
-        end
-        
-        -- Hide partial fill on other bars
-        for i = 1, #self.essenceBars do
-            if i ~= rechargingIndex then
-                self.essenceBars[i].partialFill:Hide()
-            end
+            self.lastRechargingIndex = rechargingIndex
         end
     else
-        -- Hide all partial fills when not recharging
-        for i = 1, #self.essenceBars do
-            self.essenceBars[i].partialFill:Hide()
+        -- Hide the last recharging bar when at max essence
+        if self.lastRechargingIndex then
+            self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
+            self.lastRechargingIndex = nil
         end
     end
 end
