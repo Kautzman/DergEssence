@@ -224,10 +224,11 @@ function DergEssence:UpdateEssence()
     if not self.lastEssenceCount or self.lastEssenceCount ~= currentEssence then
         local essenceChanged = self.lastEssenceCount ~= nil
         local essenceSpent = essenceChanged and currentEssence < self.lastEssenceCount
+        local wasAtMax = self.lastEssenceCount and self.lastEssenceCount >= maxEssence
         
-        -- If essence was spent, keep the timer unchanged to carry over progress
-        -- If essence was gained or first initialization, reset the timer
-        if not essenceSpent then
+        -- Carry over progress only when spending from partial state (not from max)
+        -- Reset timer when: gaining essence, at max, or first initialization
+        if not essenceSpent or wasAtMax then
             self.lastEssenceTime = GetTime()
         end
         
