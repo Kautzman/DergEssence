@@ -220,10 +220,36 @@ function DergEssence:UpdateEssence()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
-    -- Track essence count changes to reset recharge timer
+    -- Track essence count changes and handle progress carryover
     if not self.lastEssenceCount or self.lastEssenceCount ~= currentEssence then
+        local essenceChanged = self.lastEssenceCount ~= nil
+        local essenceSpent = essenceChanged and currentEssence < self.lastEssenceCount
+        
+        -- If essence was spent and we have a timer, carry over the partial progress
+        if essenceSpent and self.lastEssenceTime then
+            -- Calculate current progress before the change
+            local currentTime = GetTime()
+            local timeSinceLastEssence = currentTime - self.lastEssenceTime
+            
+            -- Calculate actual recharge time (same logic as UpdateRechargeProgress)
+            local haste = UnitSpellHaste("player")
+            local actualRechargeTime = BASE_RECHARGE_TIME / (1 + haste / 100)
+            
+            -- Apply Innate Magic talent bonus
+            if self.cachedInnateMagicRank > 0 then
+                local talentBonus = self.cachedInnateMagicRank * INNATE_MAGIC_BONUS_PER_RANK
+                actualRechargeTime = actualRechargeTime / (1 + talentBonus)
+            end
+            
+            -- Carry over progress: adjust the timer back by the time already elapsed
+            -- This maintains the partial progress for the new actively charging essence
+            self.lastEssenceTime = currentTime - timeSinceLastEssence
+        else
+            -- Essence gained or first initialization - reset timer
+            self.lastEssenceTime = GetTime()
+        end
+        
         self.lastEssenceCount = currentEssence
-        self.lastEssenceTime = GetTime()
     end
     
     -- Update each essence bar
