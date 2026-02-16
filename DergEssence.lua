@@ -43,6 +43,11 @@ local function OnEvent(self, event, ...)
         end
     elseif event == "PLAYER_ENTERING_WORLD" then
         DergEssence:UpdateEssence()
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local unit = ...
+        if unit == "player" then
+            DergEssence:CheckEssenceAfterSpellCast()
+        end
     elseif event == "TRAIT_CONFIG_UPDATED" or event == "PLAYER_SPECIALIZATION_CHANGED" then
         -- Update cached talent rank when talents change
         if DergEssence.essenceBars then
@@ -73,6 +78,7 @@ function DergEssence:OnEnable()
     -- Register events for essence tracking
     frame:RegisterEvent("UNIT_POWER_UPDATE")
     frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     frame:RegisterEvent("TRAIT_CONFIG_UPDATED")
     frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
     
@@ -98,6 +104,7 @@ function DergEssence:OnDisable()
     -- Only unregister essence tracking events, keep lifecycle events
     frame:UnregisterEvent("UNIT_POWER_UPDATE")
     frame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    frame:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     frame:UnregisterEvent("TRAIT_CONFIG_UPDATED")
     frame:UnregisterEvent("PLAYER_SPECIALIZATION_CHANGED")
     
@@ -299,6 +306,20 @@ function DergEssence:UpdateEssence()
             -- Hide bars beyond max essence
             bar:Hide()
         end
+    end
+end
+
+-- Check essence count after spell cast and update UI if there's a mismatch
+function DergEssence:CheckEssenceAfterSpellCast()
+    if not self.essenceBars then
+        return
+    end
+    
+    local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
+    
+    -- If there's a mismatch between tracked and actual essence, update the UI
+    if self.lastEssenceCount and self.lastEssenceCount ~= currentEssence then
+        self:UpdateEssence()
     end
 end
 
