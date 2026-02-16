@@ -277,6 +277,12 @@ function DergEssence:UpdateEssence()
         local essenceSpent = essenceChanged and currentEssence < self.lastEssenceCount
         local wasAtMax = self.lastEssenceCount and self.lastEssenceCount >= maxEssence
         
+        -- Hide any active partial fills when essence count changes to prevent race conditions
+        if self.lastRechargingIndex and self.lastRechargingIndex <= #self.essenceBars then
+            self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
+            self.lastRechargingIndex = nil
+        end
+        
         -- Carry over progress only when spending from partial state (not from max)
         -- Reset timer when: gaining essence, at max, or first initialization
         if not essenceSpent or wasAtMax then
@@ -356,6 +362,25 @@ function DergEssence:UpdateRechargeProgress()
         
         -- Show partial fill on the next essence to recharge
         local rechargingIndex = currentEssence + 1
+        
+        -- Re-query essence to detect race conditions with spell casts
+        local currentEssenceCheck = UnitPower("player", ESSENCE_POWER_TYPE)
+        
+        -- If essence changed during this function, abort to prevent showing partial on wrong bar
+        if currentEssenceCheck ~= currentEssence then
+            return
+        end
+        
+        -- Validate that we're not showing partial fill on a bar that should be full
+        -- This prevents race conditions where essence count updates mid-frame
+        if rechargingIndex <= currentEssence then
+            -- The bar we want to show progress on is already full, don't show it
+            if self.lastRechargingIndex and self.lastRechargingIndex <= #self.essenceBars then
+                self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
+                self.lastRechargingIndex = nil
+            end
+            return
+        end
         
         -- Hide previous recharging bar if index changed
         if self.lastRechargingIndex and self.lastRechargingIndex ~= rechargingIndex 
