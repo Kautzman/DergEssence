@@ -272,6 +272,36 @@ function DergEssence:UpdateRechargeProgress()
     end
 end
 
+local function IsTalentTakenByName(talentName)
+    local configId = C_ClassTalents.GetActiveConfigID()
+    if not configId then return false end
+
+    local configInfo = C_Traits.GetConfigInfo(configId)
+    if not configInfo then return false end
+
+    for _, treeId in ipairs(configInfo.treeIDs) do
+        for _, nodeId in ipairs(C_Traits.GetTreeNodes(treeId)) do
+            local nodeInfo = C_Traits.GetNodeInfo(configId, nodeId)
+
+            if nodeInfo and nodeInfo.activeEntry then
+                local entryInfo = C_Traits.GetEntryInfo(configId, nodeInfo.activeEntry)
+                if entryInfo and entryInfo.definitionID then
+                    local defInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
+
+                    if defInfo and defInfo.spellID then
+                        local name = GetSpellInfo(defInfo.spellID)
+                        if name == talentName then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 -- Slash command handler
 SLASH_DERGESSENCE1 = "/dergessence"
 SLASH_DERGESSENCE2 = "/de"
