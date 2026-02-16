@@ -15,6 +15,7 @@ DergEssence.version = "1.0.0"
 -- Constants
 local MAX_EVOKER_ESSENCE = 6
 local ESSENCE_POWER_TYPE = 19  -- Power type ID for Evoker essence
+local BASE_RECHARGE_TIME = 5.0  -- Base time in seconds for essence to recharge
 
 -- Frame for event handling
 local frame = CreateFrame("Frame")
@@ -71,6 +72,10 @@ function DergEssence:OnEnable()
         -- Show the frame if it was previously hidden
         if self.mainFrame then
             self.mainFrame:Show()
+            -- Re-enable OnUpdate handler
+            self.mainFrame:SetScript("OnUpdate", function(self, elapsed)
+                DergEssence:UpdateRechargeProgress()
+            end)
             self:UpdateEssence()
         end
     end
@@ -85,6 +90,8 @@ function DergEssence:OnDisable()
     -- Hide the essence display if it exists
     if self.mainFrame then
         self.mainFrame:Hide()
+        -- Stop OnUpdate to save performance
+        self.mainFrame:SetScript("OnUpdate", nil)
     end
 end
 
@@ -159,10 +166,23 @@ function DergEssence:CreateEssenceDisplay()
             bar.fill:SetColorTexture(0.4, 0.7, 1, 1)  -- Light blue
             bar.fill:Hide()  -- Initially hidden
             
+            -- Create partial fill texture for recharging essence
+            bar.partialFill = bar:CreateTexture(nil, "ARTWORK")
+            bar.partialFill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
+            bar.partialFill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
+            bar.partialFill:SetWidth(0)  -- Initially zero width
+            bar.partialFill:SetColorTexture(0.4, 0.7, 1, 1)  -- Light blue, same as fill
+            bar.partialFill:Hide()  -- Initially hidden
+            
             self.essenceBars[i] = bar
         end
         
         self.mainFrame:Show()
+        
+        -- Set up OnUpdate handler for recharge progress
+        self.mainFrame:SetScript("OnUpdate", function(self, elapsed)
+            DergEssence:UpdateRechargeProgress()
+        end)
     end
 end
 
@@ -175,6 +195,18 @@ function DergEssence:UpdateEssence()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
+    -- Track essence count changes to reset recharge timer
+    if not self.lastEssenceCount then
+        self.lastEssenceCount = currentEssence
+        self.lastEssenceTime = GetTime()
+    end
+    
+    -- If essence count changed, reset the timer
+    if self.lastEssenceCount ~= currentEssence then
+        self.lastEssenceCount = currentEssence
+        self.lastEssenceTime = GetTime()
+    end
+    
     -- Update each essence bar
     for i = 1, #self.essenceBars do
         local bar = self.essenceBars[i]
@@ -186,13 +218,59 @@ function DergEssence:UpdateEssence()
             if i <= currentEssence then
                 -- Full essence - show filled bar
                 bar.fill:Show()
+                bar.partialFill:Hide()
             else
-                -- Empty essence - hide fill
+                -- Empty essence - hide fill (recharge progress handled in UpdateRechargeProgress)
                 bar.fill:Hide()
             end
         else
             -- Hide bars beyond max essence
             bar:Hide()
+        end
+    end
+end
+
+-- Update recharge progress animation
+function DergEssence:UpdateRechargeProgress()
+    if not self.essenceBars then
+        return
+    end
+    
+    local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
+    local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
+    
+    -- Check if we should show recharging essence
+    local showRecharging = currentEssence < maxEssence
+    
+    if showRecharging and self.lastEssenceTime then
+        -- Calculate actual recharge time based on haste
+        local haste = UnitSpellHaste("player")
+        local actualRechargeTime = BASE_RECHARGE_TIME / (1 + haste / 100)
+        
+        -- Calculate recharge progress
+        local currentTime = GetTime()
+        local timeSinceLastEssence = currentTime - self.lastEssenceTime
+        local rechargingProgress = math.min(1, timeSinceLastEssence / actualRechargeTime)
+        
+        -- Show partial fill on the next essence to recharge
+        local rechargingIndex = currentEssence + 1
+        if rechargingIndex <= maxEssence then
+            local bar = self.essenceBars[rechargingIndex]
+            local fillWidth = (bar:GetWidth() - 2) * rechargingProgress  -- Account for border
+            bar.partialFill:SetWidth(fillWidth)
+            bar.partialFill:Show()
+        end
+        
+        -- Hide partial fill on other bars
+        for i = 1, #self.essenceBars do
+            if i ~= rechargingIndex then
+                self.essenceBars[i].partialFill:Hide()
+            end
+        end
+    else
+        -- Hide all partial fills when not recharging
+        for i = 1, #self.essenceBars do
+            self.essenceBars[i].partialFill:Hide()
         end
     end
 end
