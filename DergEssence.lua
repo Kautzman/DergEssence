@@ -330,7 +330,7 @@ function DergEssence:UpdateRechargeProgress()
         local currentTime = GetTime()
         local timeSinceLastEssence = currentTime - self.lastEssenceTime
         -- Cap progress at 100% to prevent visual anomalies while waiting for server confirmation
-        local rechargingProgress = math.min(1.0, timeSinceLastEssence / actualRechargeTime)
+        local rechargingProgress = math.min(1, timeSinceLastEssence / actualRechargeTime)
         
         -- Show partial fill on the next essence to recharge
         local rechargingIndex = currentEssence + 1
