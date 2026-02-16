@@ -12,6 +12,10 @@ DergEssenceDB = DergEssenceDB or {}
 DergEssence = {}
 DergEssence.version = "1.0.0"
 
+-- Constants
+local MAX_EVOKER_ESSENCE = 6
+local ESSENCE_POWER_TYPE = 19  -- Power type ID for Evoker essence
+
 -- Frame for event handling
 local frame = CreateFrame("Frame")
 
@@ -86,7 +90,6 @@ end
 
 -- Setup essence tracking for Evokers
 function DergEssence:SetupEssenceTracking()
-    -- Essence is power type 19 for Evokers
     self:CreateEssenceDisplay()
     self:UpdateEssence()
     print("|cFF00FF00DergEssence|r: Essence tracking initialized for Evoker.")
@@ -100,18 +103,19 @@ function DergEssence:CreateEssenceDisplay()
         self.mainFrame:SetSize(500, 20)  -- Container size
         self.mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)  -- Centered on screen
         
-        -- Create essence bars (max 6 for Evoker)
+        -- Create essence bars
         self.essenceBars = {}
         local barWidth = 100
         local barHeight = 15
-        local maxEssence = 6
+        local barGap = 2  -- Gap between bars
         
-        for i = 1, maxEssence do
+        for i = 1, MAX_EVOKER_ESSENCE do
             local bar = CreateFrame("Frame", "DergEssenceBar" .. i, self.mainFrame)
             bar:SetSize(barWidth, barHeight)
             
-            -- Position bars horizontally with small gap
-            local xOffset = (i - 1) * (barWidth + 2) - (maxEssence * (barWidth + 2) - 2) / 2
+            -- Position bars horizontally with gap between them
+            -- Formula centers all bars: offset = (bar_index - 1) * (width + gap) - total_width / 2
+            local xOffset = (i - 1) * (barWidth + barGap) - (MAX_EVOKER_ESSENCE * (barWidth + barGap) - barGap) / 2
             bar:SetPoint("LEFT", self.mainFrame, "CENTER", xOffset, 0)
             
             -- Create background (black when essence not available)
@@ -168,8 +172,6 @@ function DergEssence:UpdateEssence()
         return
     end
     
-    -- Essence is power type 19 for Evokers
-    local ESSENCE_POWER_TYPE = 19
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
