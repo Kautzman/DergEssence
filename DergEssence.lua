@@ -41,6 +41,11 @@ local function OnEvent(self, event, ...)
         end
     elseif event == "PLAYER_ENTERING_WORLD" then
         DergEssence:UpdateEssence()
+    elseif event == "TRAIT_CONFIG_UPDATED" or event == "PLAYER_SPECIALIZATION_CHANGED" then
+        -- Update cached talent rank when talents change
+        if DergEssence.essenceBars then
+            DergEssence:UpdateTalentCache()
+        end
     end
 end
 
@@ -66,6 +71,8 @@ function DergEssence:OnEnable()
     -- Register events for essence tracking
     frame:RegisterEvent("UNIT_POWER_UPDATE")
     frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    frame:RegisterEvent("TRAIT_CONFIG_UPDATED")
+    frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
     
     -- Check if player is an Evoker
     local _, class = UnitClass("player")
@@ -89,6 +96,8 @@ function DergEssence:OnDisable()
     -- Only unregister essence tracking events, keep lifecycle events
     frame:UnregisterEvent("UNIT_POWER_UPDATE")
     frame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    frame:UnregisterEvent("TRAIT_CONFIG_UPDATED")
+    frame:UnregisterEvent("PLAYER_SPECIALIZATION_CHANGED")
     
     -- Hide the essence display if it exists
     if self.mainFrame then
@@ -101,8 +110,14 @@ end
 -- Setup essence tracking for Evokers
 function DergEssence:SetupEssenceTracking()
     self:CreateEssenceDisplay()
+    self:UpdateTalentCache()
     self:UpdateEssence()
     print("|cFF00FF00DergEssence|r: Essence tracking initialized for Evoker.")
+end
+
+-- Update cached talent information
+function DergEssence:UpdateTalentCache()
+    self.cachedInnateMagicRank = GetTalentRankByName(INNATE_MAGIC_TALENT_NAME)
 end
 
 -- Create the essence bar display
@@ -244,10 +259,9 @@ function DergEssence:UpdateRechargeProgress()
         local haste = UnitSpellHaste("player")
         local actualRechargeTime = BASE_RECHARGE_TIME / (1 + haste / 100)
         
-        -- Apply Innate Magic talent bonus (5% per rank)
-        local innateMagicRank = GetTalentRankByName(INNATE_MAGIC_TALENT_NAME)
-        if innateMagicRank > 0 then
-            local talentBonus = innateMagicRank * INNATE_MAGIC_BONUS_PER_RANK
+        -- Apply Innate Magic talent bonus (5% per rank) from cached value
+        if self.cachedInnateMagicRank and self.cachedInnateMagicRank > 0 then
+            local talentBonus = self.cachedInnateMagicRank * INNATE_MAGIC_BONUS_PER_RANK
             -- Increase regen rate = decrease recharge time
             actualRechargeTime = actualRechargeTime / (1 + talentBonus)
         end
