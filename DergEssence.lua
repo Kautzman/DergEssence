@@ -124,6 +124,7 @@ function DergEssence:UpdateTalentCache()
     -- Only update if we got a valid result (talent API may not be ready yet)
     if rank then
         self.cachedInnateMagicRank = rank
+        print("|cFF00FF00DergEssence|r: Found " .. rank .. " rank(s) of Innate Magic talent")
     end
 end
 
