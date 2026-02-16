@@ -16,6 +16,7 @@ DergEssence.version = "1.0.0"
 local MAX_EVOKER_ESSENCE = 6
 local ESSENCE_POWER_TYPE = 19  -- Power type ID for Evoker essence
 local BASE_RECHARGE_TIME = 5.0  -- Base time in seconds for essence to recharge
+local ESSENCE_COLOR = {r = 0.4, g = 0.7, b = 1.0, a = 1.0}  -- Light blue color for essence bars
 
 -- Frame for event handling
 local frame = CreateFrame("Frame")
@@ -163,7 +164,7 @@ function DergEssence:CreateEssenceDisplay()
             bar.fill = bar:CreateTexture(nil, "ARTWORK")
             bar.fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
             bar.fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -1, 1)
-            bar.fill:SetColorTexture(0.4, 0.7, 1, 1)  -- Light blue
+            bar.fill:SetColorTexture(ESSENCE_COLOR.r, ESSENCE_COLOR.g, ESSENCE_COLOR.b, ESSENCE_COLOR.a)
             bar.fill:Hide()  -- Initially hidden
             
             -- Create partial fill texture for recharging essence
@@ -171,7 +172,7 @@ function DergEssence:CreateEssenceDisplay()
             bar.partialFill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
             bar.partialFill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
             bar.partialFill:SetWidth(0)  -- Initially zero width
-            bar.partialFill:SetColorTexture(0.4, 0.7, 1, 1)  -- Light blue, same as fill
+            bar.partialFill:SetColorTexture(ESSENCE_COLOR.r, ESSENCE_COLOR.g, ESSENCE_COLOR.b, ESSENCE_COLOR.a)
             bar.partialFill:Hide()  -- Initially hidden
             
             self.essenceBars[i] = bar
@@ -196,13 +197,7 @@ function DergEssence:UpdateEssence()
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
     -- Track essence count changes to reset recharge timer
-    if not self.lastEssenceCount then
-        self.lastEssenceCount = currentEssence
-        self.lastEssenceTime = GetTime()
-    end
-    
-    -- If essence count changed, reset the timer
-    if self.lastEssenceCount ~= currentEssence then
+    if not self.lastEssenceCount or self.lastEssenceCount ~= currentEssence then
         self.lastEssenceCount = currentEssence
         self.lastEssenceTime = GetTime()
     end
@@ -256,7 +251,8 @@ function DergEssence:UpdateRechargeProgress()
         local rechargingIndex = currentEssence + 1
         
         -- Hide previous recharging bar if index changed
-        if self.lastRechargingIndex and self.lastRechargingIndex ~= rechargingIndex then
+        if self.lastRechargingIndex and self.lastRechargingIndex ~= rechargingIndex 
+            and self.lastRechargingIndex <= #self.essenceBars then
             self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
         end
         
@@ -269,7 +265,7 @@ function DergEssence:UpdateRechargeProgress()
         end
     else
         -- Hide the last recharging bar when at max essence
-        if self.lastRechargingIndex then
+        if self.lastRechargingIndex and self.lastRechargingIndex <= #self.essenceBars then
             self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
             self.lastRechargingIndex = nil
         end
