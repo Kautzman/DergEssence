@@ -110,6 +110,9 @@ end
 -- Setup essence tracking for Evokers
 function DergEssence:SetupEssenceTracking()
     self:CreateEssenceDisplay()
+    -- Initialize cached talent rank to 0 (will be updated by TRAIT_CONFIG_UPDATED event)
+    self.cachedInnateMagicRank = 0
+    -- Try to get initial talent rank (may not be available immediately after login)
     self:UpdateTalentCache()
     self:UpdateEssence()
     print("|cFF00FF00DergEssence|r: Essence tracking initialized for Evoker.")
@@ -117,7 +120,11 @@ end
 
 -- Update cached talent information
 function DergEssence:UpdateTalentCache()
-    self.cachedInnateMagicRank = GetTalentRankByName(INNATE_MAGIC_TALENT_NAME)
+    local rank = GetTalentRankByName(INNATE_MAGIC_TALENT_NAME)
+    -- Only update if we got a valid result (talent API may not be ready yet)
+    if rank then
+        self.cachedInnateMagicRank = rank
+    end
 end
 
 -- Create the essence bar display
@@ -260,7 +267,7 @@ function DergEssence:UpdateRechargeProgress()
         local actualRechargeTime = BASE_RECHARGE_TIME / (1 + haste / 100)
         
         -- Apply Innate Magic talent bonus (5% per rank) from cached value
-        if self.cachedInnateMagicRank and self.cachedInnateMagicRank > 0 then
+        if self.cachedInnateMagicRank > 0 then
             local talentBonus = self.cachedInnateMagicRank * INNATE_MAGIC_BONUS_PER_RANK
             -- Increase regen rate = decrease recharge time
             actualRechargeTime = actualRechargeTime / (1 + talentBonus)
