@@ -366,14 +366,15 @@ function DergEssence:UpdateRechargeProgress()
         -- Re-query essence to detect race conditions with spell casts
         local currentEssenceCheck = UnitPower("player", ESSENCE_POWER_TYPE)
         
-        -- If essence changed during this function, abort to prevent showing partial on wrong bar
-        if currentEssenceCheck ~= currentEssence then
+        -- If essence increased during this function, abort to prevent showing partial on wrong bar
+        -- (Essence decreasing is fine - that's a spell cast which UpdateEssence will handle)
+        if currentEssenceCheck > currentEssence then
             return
         end
         
         -- Validate that we're not showing partial fill on a bar that should be full
         -- This prevents race conditions where essence count updates mid-frame
-        if rechargingIndex <= currentEssence then
+        if rechargingIndex <= currentEssenceCheck then
             -- The bar we want to show progress on is already full, don't show it
             if self.lastRechargingIndex and self.lastRechargingIndex <= #self.essenceBars then
                 self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
