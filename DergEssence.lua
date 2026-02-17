@@ -208,7 +208,10 @@ function DergEssence:CreateEssenceDisplay()
     if not self.mainFrame then
         self.mainFrame = CreateFrame("Frame", "DergEssenceMainFrame", UIParent)
         self.mainFrame:SetSize(500, 20)  -- Container size
-        self.mainFrame:SetPoint("CENTER", UIParent, "CENTER", DergEssenceDB.options.xPosition, DergEssenceDB.options.yPosition)
+        -- Validate position values before use
+        local xPos = tonumber(DergEssenceDB.options.xPosition) or 0
+        local yPos = tonumber(DergEssenceDB.options.yPosition) or 0
+        self.mainFrame:SetPoint("CENTER", UIParent, "CENTER", xPos, yPos)
         
         -- Create essence bars
         self.essenceBars = {}
@@ -499,6 +502,18 @@ function DergEssence:CreateOptionsWindow()
     frame.title:SetPoint("TOP", 0, -5)
     frame.title:SetText("DergEssence Options")
     
+    -- Debounce timer for applying changes
+    local applyTimer = nil
+    local function scheduleApply()
+        if applyTimer then
+            applyTimer:Cancel()
+        end
+        applyTimer = C_Timer.NewTimer(0.1, function()
+            DergEssence:RecreateEssenceDisplay()
+            applyTimer = nil
+        end)
+    end
+    
     local yOffset = -30
     
     -- Helper function to create section headers
@@ -532,12 +547,12 @@ function DergEssence:CreateOptionsWindow()
         slider.valueText:SetPoint("TOP", slider, "BOTTOM", 0, 0)
         slider.valueText:SetText(string.format("%.1f", currentValue))
         
-        -- Update on value change with immediate apply
+        -- Update on value change with debounced apply
         slider:SetScript("OnValueChanged", function(self, value)
             DergEssenceDB.options[key] = value
             self.valueText:SetText(string.format("%.1f", value))
-            -- Apply changes immediately
-            DergEssence:RecreateEssenceDisplay()
+            -- Apply changes with debounce
+            scheduleApply()
         end)
         
         yOffset = yOffset - 60
@@ -576,8 +591,8 @@ function DergEssence:CreateOptionsWindow()
                 DergEssenceDB.options[key].b = b
                 DergEssenceDB.options[key].a = a
                 self.colorSwatch:SetColorTexture(r, g, b, a)
-                -- Apply changes immediately
-                DergEssence:RecreateEssenceDisplay()
+                -- Apply changes with debounce
+                scheduleApply()
             end
             
             ColorPickerFrame:SetupColorPickerAndShow({
