@@ -559,6 +559,64 @@ function DergEssence:CreateOptionsWindow()
         return slider
     end
     
+    local function createSliderWithTextbox(label, key, minVal, maxVal, step)
+        local slider = CreateFrame("Slider", "DergEssenceSlider_" .. key, frame, "OptionsSliderTemplate")
+        slider:SetPoint("TOPLEFT", 20, yOffset)
+        slider:SetWidth(350)
+        slider:SetMinMaxValues(minVal, maxVal)
+        slider:SetValueStep(step)
+        slider:SetObeyStepOnDrag(true)
+        
+        -- Get current value
+        local currentValue = DergEssenceDB.options[key]
+        slider:SetValue(currentValue)
+        
+        -- Label
+        slider.label = slider:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        slider.label:SetPoint("BOTTOM", slider, "TOP", 0, 0)
+        slider.label:SetText(label)
+        
+        -- Editable textbox for value input
+        local editBox = CreateFrame("EditBox", "DergEssenceEditBox_" .. key, frame, "InputBoxTemplate")
+        editBox:SetPoint("TOP", slider, "BOTTOM", 0, -5)
+        editBox:SetSize(60, 20)
+        editBox:SetAutoFocus(false)
+        editBox:SetText(string.format("%.0f", currentValue))
+        
+        -- Update slider when editbox value changes
+        editBox:SetScript("OnEnterPressed", function(self)
+            local value = tonumber(self:GetText())
+            if value then
+                -- Clamp value to min/max
+                value = math.max(minVal, math.min(maxVal, value))
+                DergEssenceDB.options[key] = value
+                slider:SetValue(value)
+                self:SetText(string.format("%.0f", value))
+                scheduleApply()
+            else
+                -- Invalid input, restore previous value
+                self:SetText(string.format("%.0f", DergEssenceDB.options[key]))
+            end
+            self:ClearFocus()
+        end)
+        
+        editBox:SetScript("OnEscapePressed", function(self)
+            self:SetText(string.format("%.0f", DergEssenceDB.options[key]))
+            self:ClearFocus()
+        end)
+        
+        -- Update on slider value change
+        slider:SetScript("OnValueChanged", function(self, value)
+            DergEssenceDB.options[key] = value
+            editBox:SetText(string.format("%.0f", value))
+            -- Apply changes with debounce
+            scheduleApply()
+        end)
+        
+        yOffset = yOffset - 60
+        return slider
+    end
+    
     local function createColorPicker(label, key)
         local button = CreateFrame("Button", "DergEssenceColorPicker_" .. key, frame, "UIPanelButtonTemplate")
         button:SetPoint("TOPLEFT", 20, yOffset)
@@ -632,18 +690,8 @@ function DergEssence:CreateOptionsWindow()
     
     -- Position Section
     createSectionHeader("Position")
-    createSlider("Horizontal Position", "xPosition", -500, 500, 5)
-    createSlider("Vertical Position", "yPosition", -500, 500, 5)
-    
-    -- Apply button (kept for compatibility, but changes apply immediately)
-    local applyButton = CreateFrame("Button", "DergEssenceApplyButton", frame, "UIPanelButtonTemplate")
-    applyButton:SetPoint("BOTTOM", 0, 15)
-    applyButton:SetSize(150, 30)
-    applyButton:SetText("Apply Changes")
-    applyButton:SetScript("OnClick", function()
-        DergEssence:RecreateEssenceDisplay()
-        print("|cFF00FF00DergEssence|r: Settings applied!")
-    end)
+    createSliderWithTextbox("Horizontal Position", "xPosition", -500, 500, 5)
+    createSliderWithTextbox("Vertical Position", "yPosition", -500, 500, 5)
 end
 
 -- Show options window
