@@ -79,7 +79,9 @@ function DergEssence:OnInitialize()
         filledColor = {r = 0.4, g = 0.7, b = 1.0, a = 1.0},
         emptyColor = {r = 0, g = 0, b = 0, a = 1.0},
         borderColor = {r = 0.5, g = 0.5, b = 0.5, a = 1.0},
-        borderThickness = 1
+        borderThickness = 1,
+        xPosition = 0,
+        yPosition = 0
     }
     
     for key, value in pairs(defaults) do
@@ -206,7 +208,7 @@ function DergEssence:CreateEssenceDisplay()
     if not self.mainFrame then
         self.mainFrame = CreateFrame("Frame", "DergEssenceMainFrame", UIParent)
         self.mainFrame:SetSize(500, 20)  -- Container size
-        self.mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)  -- Centered on screen
+        self.mainFrame:SetPoint("CENTER", UIParent, "CENTER", DergEssenceDB.options.xPosition, DergEssenceDB.options.yPosition)
         
         -- Create essence bars
         self.essenceBars = {}
@@ -483,7 +485,7 @@ function DergEssence:CreateOptionsWindow()
     
     local frame = CreateFrame("Frame", "DergEssenceOptionsFrame", UIParent, "BasicFrameTemplateWithInset")
     self.optionsFrame = frame
-    frame:SetSize(400, 500)
+    frame:SetSize(400, 600)
     frame:SetPoint("CENTER")
     frame:SetMovable(true)
     frame:EnableMouse(true)
@@ -498,6 +500,16 @@ function DergEssence:CreateOptionsWindow()
     frame.title:SetText("DergEssence Options")
     
     local yOffset = -30
+    
+    -- Helper function to create section headers
+    local function createSectionHeader(text)
+        local header = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        header:SetPoint("TOPLEFT", 20, yOffset)
+        header:SetText(text)
+        yOffset = yOffset - 25
+        return header
+    end
+    
     local function createSlider(label, key, minVal, maxVal, step)
         local slider = CreateFrame("Slider", "DergEssenceSlider_" .. key, frame, "OptionsSliderTemplate")
         slider:SetPoint("TOPLEFT", 20, yOffset)
@@ -520,10 +532,12 @@ function DergEssence:CreateOptionsWindow()
         slider.valueText:SetPoint("TOP", slider, "BOTTOM", 0, 0)
         slider.valueText:SetText(string.format("%.1f", currentValue))
         
-        -- Update on value change
+        -- Update on value change with immediate apply
         slider:SetScript("OnValueChanged", function(self, value)
             DergEssenceDB.options[key] = value
             self.valueText:SetText(string.format("%.1f", value))
+            -- Apply changes immediately
+            DergEssence:RecreateEssenceDisplay()
         end)
         
         yOffset = yOffset - 60
@@ -562,6 +576,8 @@ function DergEssence:CreateOptionsWindow()
                 DergEssenceDB.options[key].b = b
                 DergEssenceDB.options[key].a = a
                 self.colorSwatch:SetColorTexture(r, g, b, a)
+                -- Apply changes immediately
+                DergEssence:RecreateEssenceDisplay()
             end
             
             ColorPickerFrame:SetupColorPickerAndShow({
@@ -578,6 +594,8 @@ function DergEssence:CreateOptionsWindow()
                     DergEssenceDB.options[key].b = originalB
                     DergEssenceDB.options[key].a = originalA
                     self.colorSwatch:SetColorTexture(originalR, originalG, originalB, originalA)
+                    -- Restore original appearance
+                    DergEssence:RecreateEssenceDisplay()
                 end,
             })
         end)
@@ -586,7 +604,8 @@ function DergEssence:CreateOptionsWindow()
         return button
     end
     
-    -- Create UI elements
+    -- Appearance Section
+    createSectionHeader("Appearance")
     createSlider("Bar Width", "barWidth", 50, 200, 5)
     createSlider("Bar Height", "barHeight", 10, 50, 1)
     createSlider("Bar Spacing", "barSpacing", 0, 20, 1)
@@ -596,7 +615,12 @@ function DergEssence:CreateOptionsWindow()
     createColorPicker("Empty Color", "emptyColor")
     createColorPicker("Border Color", "borderColor")
     
-    -- Apply button
+    -- Position Section
+    createSectionHeader("Position")
+    createSlider("Horizontal Position", "xPosition", -500, 500, 5)
+    createSlider("Vertical Position", "yPosition", -500, 500, 5)
+    
+    -- Apply button (kept for compatibility, but changes apply immediately)
     local applyButton = CreateFrame("Button", "DergEssenceApplyButton", frame, "UIPanelButtonTemplate")
     applyButton:SetPoint("BOTTOM", 0, 15)
     applyButton:SetSize(150, 30)
