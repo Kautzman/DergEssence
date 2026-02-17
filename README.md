@@ -43,8 +43,8 @@ The options window allows you to customize the appearance and position of the es
 - Border Color: Choose the color of bar borders
 
 **Position Section:**
-- Horizontal Position: Move the bars left/right (-500 to 500)
-- Vertical Position: Move the bars up/down (-500 to 500)
+- Horizontal Position: Move the bars left/right (-500 to 500) - use the slider or type a value directly
+- Vertical Position: Move the bars up/down (-500 to 500) - use the slider or type a value directly
 
 All changes are applied immediately as you adjust them, providing live visual feedback.
 
