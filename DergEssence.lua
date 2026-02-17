@@ -522,7 +522,6 @@ function DergEssence:CreateOptionsWindow()
         
         -- Update on value change
         slider:SetScript("OnValueChanged", function(self, value)
-            value = math.floor(value / step + 0.5) * step
             DergEssenceDB.options[key] = value
             self.valueText:SetText(string.format("%.1f", value))
         end)
