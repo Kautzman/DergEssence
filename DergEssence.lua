@@ -66,7 +66,29 @@ function DergEssence:OnInitialize()
         DergEssenceDB.enabled = true
     end
     
-    print("|cFF00FF00DergEssence|r v" .. self.version .. " loaded. Type /dergessence for options.")
+    -- Initialize options with defaults
+    if not DergEssenceDB.options then
+        DergEssenceDB.options = {}
+    end
+    
+    -- Set default values for missing options
+    local defaults = {
+        barWidth = 100,
+        barHeight = 15,
+        barSpacing = 2,
+        filledColor = {r = 0.4, g = 0.7, b = 1.0, a = 1.0},
+        emptyColor = {r = 0, g = 0, b = 0, a = 1.0},
+        borderColor = {r = 0.5, g = 0.5, b = 0.5, a = 1.0},
+        borderThickness = 1
+    }
+    
+    for key, value in pairs(defaults) do
+        if DergEssenceDB.options[key] == nil then
+            DergEssenceDB.options[key] = value
+        end
+    end
+    
+    print("|cFF00FF00DergEssence|r v" .. self.version .. " loaded. Type /dergessence or /derge for options.")
 end
 
 -- Enable the addon
@@ -188,9 +210,9 @@ function DergEssence:CreateEssenceDisplay()
         
         -- Create essence bars
         self.essenceBars = {}
-        local barWidth = 100
-        local barHeight = 15
-        local barGap = 2  -- Gap between bars
+        local barWidth = DergEssenceDB.options.barWidth
+        local barHeight = DergEssenceDB.options.barHeight
+        local barGap = DergEssenceDB.options.barSpacing
         
         for i = 1, MAX_EVOKER_ESSENCE do
             local bar = CreateFrame("Frame", "DergEssenceBar" .. i, self.mainFrame)
@@ -204,50 +226,59 @@ function DergEssence:CreateEssenceDisplay()
             -- Create background (black when essence not available)
             bar.background = bar:CreateTexture(nil, "BACKGROUND")
             bar.background:SetAllPoints()
-            bar.background:SetColorTexture(0, 0, 0, 1)  -- Black
+            bar.background:SetColorTexture(
+                DergEssenceDB.options.emptyColor.r,
+                DergEssenceDB.options.emptyColor.g,
+                DergEssenceDB.options.emptyColor.b,
+                DergEssenceDB.options.emptyColor.a
+            )
             
             -- Create border frame using four edge textures
+            local borderThickness = DergEssenceDB.options.borderThickness
+            local borderColor = DergEssenceDB.options.borderColor
+            
             -- Top border
             bar.borderTop = bar:CreateTexture(nil, "BORDER")
             bar.borderTop:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
             bar.borderTop:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
-            bar.borderTop:SetHeight(1)
-            bar.borderTop:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderTop:SetHeight(borderThickness)
+            bar.borderTop:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Bottom border
             bar.borderBottom = bar:CreateTexture(nil, "BORDER")
             bar.borderBottom:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
             bar.borderBottom:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
-            bar.borderBottom:SetHeight(1)
-            bar.borderBottom:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderBottom:SetHeight(borderThickness)
+            bar.borderBottom:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Left border
             bar.borderLeft = bar:CreateTexture(nil, "BORDER")
             bar.borderLeft:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
             bar.borderLeft:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
-            bar.borderLeft:SetWidth(1)
-            bar.borderLeft:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderLeft:SetWidth(borderThickness)
+            bar.borderLeft:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Right border
             bar.borderRight = bar:CreateTexture(nil, "BORDER")
             bar.borderRight:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
             bar.borderRight:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
-            bar.borderRight:SetWidth(1)
-            bar.borderRight:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderRight:SetWidth(borderThickness)
+            bar.borderRight:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Create fill texture (light blue when essence available)
+            local filledColor = DergEssenceDB.options.filledColor
             bar.fill = bar:CreateTexture(nil, "ARTWORK")
-            bar.fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-            bar.fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -1, 1)
-            bar.fill:SetColorTexture(ESSENCE_COLOR.r, ESSENCE_COLOR.g, ESSENCE_COLOR.b, ESSENCE_COLOR.a)
+            bar.fill:SetPoint("TOPLEFT", bar, "TOPLEFT", borderThickness, -borderThickness)
+            bar.fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -borderThickness, borderThickness)
+            bar.fill:SetColorTexture(filledColor.r, filledColor.g, filledColor.b, filledColor.a)
             bar.fill:Hide()  -- Initially hidden
             
             -- Create partial fill texture for recharging essence
             bar.partialFill = bar:CreateTexture(nil, "ARTWORK")
-            bar.partialFill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-            bar.partialFill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
+            bar.partialFill:SetPoint("TOPLEFT", bar, "TOPLEFT", borderThickness, -borderThickness)
+            bar.partialFill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", borderThickness, borderThickness)
             bar.partialFill:SetWidth(0)  -- Initially zero width
-            bar.partialFill:SetColorTexture(ESSENCE_COLOR.r, ESSENCE_COLOR.g, ESSENCE_COLOR.b, ESSENCE_COLOR.a)
+            bar.partialFill:SetColorTexture(filledColor.r, filledColor.g, filledColor.b, filledColor.a)
             bar.partialFill:Hide()  -- Initially hidden
             
             self.essenceBars[i] = bar
@@ -397,7 +428,8 @@ function DergEssence:UpdateRechargeProgress()
         
         if rechargingIndex <= maxEssence then
             local bar = self.essenceBars[rechargingIndex]
-            local fillWidth = (bar:GetWidth() - 2) * rechargingProgress  -- Account for border
+            local borderThickness = DergEssenceDB.options.borderThickness
+            local fillWidth = (bar:GetWidth() - 2 * borderThickness) * rechargingProgress  -- Account for border
             bar.partialFill:SetWidth(fillWidth)
             bar.partialFill:Show()
             self.lastRechargingIndex = rechargingIndex
@@ -414,9 +446,186 @@ end
 -- Helper function to get the rank of a talent by name
 -- Returns the number of points invested in the talent (0 if not taken)
 
+-- Recreate essence display with new settings
+function DergEssence:RecreateEssenceDisplay()
+    if self.mainFrame then
+        -- Store the current state
+        local wasShown = self.mainFrame:IsShown()
+        
+        -- Destroy the old frame
+        self.mainFrame:Hide()
+        self.mainFrame:SetScript("OnUpdate", nil)
+        for i = 1, #self.essenceBars do
+            self.essenceBars[i]:Hide()
+        end
+        self.mainFrame = nil
+        self.essenceBars = nil
+        self.lastRechargingIndex = nil
+        
+        -- Recreate with new settings
+        self:CreateEssenceDisplay()
+        
+        -- Restore state
+        if wasShown and DergEssenceDB.enabled then
+            self.mainFrame:Show()
+            self:UpdateEssence()
+        else
+            self.mainFrame:Hide()
+        end
+    end
+end
+
+-- Create options window
+function DergEssence:CreateOptionsWindow()
+    if self.optionsFrame then
+        return
+    end
+    
+    local frame = CreateFrame("Frame", "DergEssenceOptionsFrame", UIParent, "BasicFrameTemplateWithInset")
+    self.optionsFrame = frame
+    frame:SetSize(400, 500)
+    frame:SetPoint("CENTER")
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:Hide()
+    
+    -- Title
+    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.title:SetPoint("TOP", 0, -5)
+    frame.title:SetText("DergEssence Options")
+    
+    local yOffset = -30
+    local function createSlider(label, key, minVal, maxVal, step)
+        local slider = CreateFrame("Slider", "DergEssenceSlider_" .. key, frame, "OptionsSliderTemplate")
+        slider:SetPoint("TOPLEFT", 20, yOffset)
+        slider:SetWidth(350)
+        slider:SetMinMaxValues(minVal, maxVal)
+        slider:SetValueStep(step)
+        slider:SetObeyStepOnDrag(true)
+        
+        -- Get current value
+        local currentValue = DergEssenceDB.options[key]
+        slider:SetValue(currentValue)
+        
+        -- Label
+        slider.label = slider:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        slider.label:SetPoint("BOTTOM", slider, "TOP", 0, 0)
+        slider.label:SetText(label)
+        
+        -- Value display
+        slider.valueText = slider:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        slider.valueText:SetPoint("TOP", slider, "BOTTOM", 0, 0)
+        slider.valueText:SetText(string.format("%.1f", currentValue))
+        
+        -- Update on value change
+        slider:SetScript("OnValueChanged", function(self, value)
+            value = math.floor(value / step + 0.5) * step
+            DergEssenceDB.options[key] = value
+            self.valueText:SetText(string.format("%.1f", value))
+        end)
+        
+        yOffset = yOffset - 60
+        return slider
+    end
+    
+    local function createColorPicker(label, key)
+        local button = CreateFrame("Button", "DergEssenceColorPicker_" .. key, frame, "UIPanelButtonTemplate")
+        button:SetPoint("TOPLEFT", 20, yOffset)
+        button:SetSize(120, 25)
+        button:SetText("Pick Color")
+        
+        -- Label
+        button.label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        button.label:SetPoint("BOTTOMLEFT", button, "TOPLEFT", 0, 5)
+        button.label:SetText(label)
+        
+        -- Color preview
+        button.colorSwatch = button:CreateTexture(nil, "OVERLAY")
+        button.colorSwatch:SetSize(40, 25)
+        button.colorSwatch:SetPoint("LEFT", button, "RIGHT", 10, 0)
+        local color = DergEssenceDB.options[key]
+        button.colorSwatch:SetColorTexture(color.r, color.g, color.b, color.a)
+        
+        button:SetScript("OnClick", function(self)
+            local color = DergEssenceDB.options[key]
+            ColorPickerFrame:SetupColorPickerAndShow({
+                r = color.r,
+                g = color.g,
+                b = color.b,
+                opacity = color.a,
+                hasOpacity = true,
+                swatchFunc = function()
+                    local r, g, b = ColorPickerFrame:GetColorRGB()
+                    local a = ColorPickerFrame:GetColorAlpha()
+                    DergEssenceDB.options[key].r = r
+                    DergEssenceDB.options[key].g = g
+                    DergEssenceDB.options[key].b = b
+                    DergEssenceDB.options[key].a = a
+                    self.colorSwatch:SetColorTexture(r, g, b, a)
+                end,
+                opacityFunc = function()
+                    local r, g, b = ColorPickerFrame:GetColorRGB()
+                    local a = ColorPickerFrame:GetColorAlpha()
+                    DergEssenceDB.options[key].r = r
+                    DergEssenceDB.options[key].g = g
+                    DergEssenceDB.options[key].b = b
+                    DergEssenceDB.options[key].a = a
+                    self.colorSwatch:SetColorTexture(r, g, b, a)
+                end,
+                cancelFunc = function()
+                    local r, g, b, a = color.r, color.g, color.b, color.a
+                    DergEssenceDB.options[key].r = r
+                    DergEssenceDB.options[key].g = g
+                    DergEssenceDB.options[key].b = b
+                    DergEssenceDB.options[key].a = a
+                    self.colorSwatch:SetColorTexture(r, g, b, a)
+                end,
+            })
+        end)
+        
+        yOffset = yOffset - 50
+        return button
+    end
+    
+    -- Create UI elements
+    createSlider("Bar Width", "barWidth", 50, 200, 5)
+    createSlider("Bar Height", "barHeight", 10, 50, 1)
+    createSlider("Bar Spacing", "barSpacing", 0, 20, 1)
+    createSlider("Border Thickness", "borderThickness", 0, 5, 1)
+    
+    createColorPicker("Filled Color", "filledColor")
+    createColorPicker("Empty Color", "emptyColor")
+    createColorPicker("Border Color", "borderColor")
+    
+    -- Apply button
+    local applyButton = CreateFrame("Button", "DergEssenceApplyButton", frame, "UIPanelButtonTemplate")
+    applyButton:SetPoint("BOTTOM", 0, 15)
+    applyButton:SetSize(150, 30)
+    applyButton:SetText("Apply Changes")
+    applyButton:SetScript("OnClick", function()
+        DergEssence:RecreateEssenceDisplay()
+        print("|cFF00FF00DergEssence|r: Settings applied!")
+    end)
+end
+
+-- Show options window
+function DergEssence:ShowOptions()
+    if not self.optionsFrame then
+        self:CreateOptionsWindow()
+    end
+    self.optionsFrame:Show()
+end
+
+-- Helper function to get the rank of a talent by name
+-- Returns the number of points invested in the talent (0 if not taken)
+
 -- Slash command handler
 SLASH_DERGESSENCE1 = "/dergessence"
 SLASH_DERGESSENCE2 = "/de"
+SLASH_DERGESSENCE3 = "/derge"
 SlashCmdList["DERGESSENCE"] = function(msg)
     local cmd = string.lower(msg or "")
     
@@ -430,9 +639,8 @@ SlashCmdList["DERGESSENCE"] = function(msg)
             DergEssence:OnDisable()
         end
     else
-        print("|cFF00FF00DergEssence|r v" .. DergEssence.version)
-        print("Commands:")
-        print("  /dergessence toggle - Toggle addon on/off")
+        -- Show options window
+        DergEssence:ShowOptions()
     end
 end
 
