@@ -553,30 +553,26 @@ function DergEssence:CreateOptionsWindow()
             local color = DergEssenceDB.options[key]
             -- Store original values for cancel
             local originalR, originalG, originalB, originalA = color.r, color.g, color.b, color.a
+            
+            -- Shared function for updating color
+            local function updateColor()
+                local r, g, b = ColorPickerFrame:GetColorRGB()
+                local a = ColorPickerFrame:GetColorAlpha()
+                DergEssenceDB.options[key].r = r
+                DergEssenceDB.options[key].g = g
+                DergEssenceDB.options[key].b = b
+                DergEssenceDB.options[key].a = a
+                self.colorSwatch:SetColorTexture(r, g, b, a)
+            end
+            
             ColorPickerFrame:SetupColorPickerAndShow({
                 r = color.r,
                 g = color.g,
                 b = color.b,
                 opacity = color.a,
                 hasOpacity = true,
-                swatchFunc = function()
-                    local r, g, b = ColorPickerFrame:GetColorRGB()
-                    local a = ColorPickerFrame:GetColorAlpha()
-                    DergEssenceDB.options[key].r = r
-                    DergEssenceDB.options[key].g = g
-                    DergEssenceDB.options[key].b = b
-                    DergEssenceDB.options[key].a = a
-                    self.colorSwatch:SetColorTexture(r, g, b, a)
-                end,
-                opacityFunc = function()
-                    local r, g, b = ColorPickerFrame:GetColorRGB()
-                    local a = ColorPickerFrame:GetColorAlpha()
-                    DergEssenceDB.options[key].r = r
-                    DergEssenceDB.options[key].g = g
-                    DergEssenceDB.options[key].b = b
-                    DergEssenceDB.options[key].a = a
-                    self.colorSwatch:SetColorTexture(r, g, b, a)
-                end,
+                swatchFunc = updateColor,
+                opacityFunc = updateColor,
                 cancelFunc = function()
                     DergEssenceDB.options[key].r = originalR
                     DergEssenceDB.options[key].g = originalG
