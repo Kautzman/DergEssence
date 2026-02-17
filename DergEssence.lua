@@ -551,6 +551,8 @@ function DergEssence:CreateOptionsWindow()
         
         button:SetScript("OnClick", function(self)
             local color = DergEssenceDB.options[key]
+            -- Store original values for cancel
+            local originalR, originalG, originalB, originalA = color.r, color.g, color.b, color.a
             ColorPickerFrame:SetupColorPickerAndShow({
                 r = color.r,
                 g = color.g,
@@ -576,12 +578,11 @@ function DergEssence:CreateOptionsWindow()
                     self.colorSwatch:SetColorTexture(r, g, b, a)
                 end,
                 cancelFunc = function()
-                    local r, g, b, a = color.r, color.g, color.b, color.a
-                    DergEssenceDB.options[key].r = r
-                    DergEssenceDB.options[key].g = g
-                    DergEssenceDB.options[key].b = b
-                    DergEssenceDB.options[key].a = a
-                    self.colorSwatch:SetColorTexture(r, g, b, a)
+                    DergEssenceDB.options[key].r = originalR
+                    DergEssenceDB.options[key].g = originalG
+                    DergEssenceDB.options[key].b = originalB
+                    DergEssenceDB.options[key].a = originalA
+                    self.colorSwatch:SetColorTexture(originalR, originalG, originalB, originalA)
                 end,
             })
         end)
@@ -618,9 +619,6 @@ function DergEssence:ShowOptions()
     end
     self.optionsFrame:Show()
 end
-
--- Helper function to get the rank of a talent by name
--- Returns the number of points invested in the talent (0 if not taken)
 
 -- Slash command handler
 SLASH_DERGESSENCE1 = "/dergessence"
