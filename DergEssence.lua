@@ -19,6 +19,7 @@ local BASE_RECHARGE_TIME = 5.0  -- Base time in seconds for essence to recharge
 local ESSENCE_COLOR = {r = 0.4, g = 0.7, b = 1.0, a = 1.0}  -- Light blue color for essence bars
 local INNATE_MAGIC_TALENT_NAME = 375520  -- Talent name for essence regen bonus
 local INNATE_MAGIC_BONUS_PER_RANK = 0.05  -- 5% bonus per rank (5% for 1 point, 10% for 2 points)
+local API_SYNC_FREQUENCY = 20  -- Sync with API every Nth essence event
 
 -- Frame for event handling
 local frame = CreateFrame("Frame")
@@ -66,7 +67,31 @@ function DergEssence:OnInitialize()
         DergEssenceDB.enabled = true
     end
     
-    print("|cFF00FF00DergEssence|r v" .. self.version .. " loaded. Type /dergessence for options.")
+    -- Initialize options with defaults
+    if not DergEssenceDB.options then
+        DergEssenceDB.options = {}
+    end
+    
+    -- Set default values for missing options
+    local defaults = {
+        barWidth = 100,
+        barHeight = 15,
+        barSpacing = 2,
+        filledColor = {r = 0.4, g = 0.7, b = 1.0, a = 1.0},
+        emptyColor = {r = 0, g = 0, b = 0, a = 1.0},
+        borderColor = {r = 0.5, g = 0.5, b = 0.5, a = 1.0},
+        borderThickness = 1,
+        xPosition = 0,
+        yPosition = 0
+    }
+    
+    for key, value in pairs(defaults) do
+        if DergEssenceDB.options[key] == nil then
+            DergEssenceDB.options[key] = value
+        end
+    end
+    
+    print("|cFF00FF00DergEssence|r v" .. self.version .. " loaded. Type /dergessence or /derge for options.")
 end
 
 -- Enable the addon
@@ -184,13 +209,16 @@ function DergEssence:CreateEssenceDisplay()
     if not self.mainFrame then
         self.mainFrame = CreateFrame("Frame", "DergEssenceMainFrame", UIParent)
         self.mainFrame:SetSize(500, 20)  -- Container size
-        self.mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)  -- Centered on screen
+        -- Validate position values before use
+        local xPos = tonumber(DergEssenceDB.options.xPosition) or 0
+        local yPos = tonumber(DergEssenceDB.options.yPosition) or 0
+        self.mainFrame:SetPoint("CENTER", UIParent, "CENTER", xPos, yPos)
         
         -- Create essence bars
         self.essenceBars = {}
-        local barWidth = 100
-        local barHeight = 15
-        local barGap = 2  -- Gap between bars
+        local barWidth = DergEssenceDB.options.barWidth
+        local barHeight = DergEssenceDB.options.barHeight
+        local barGap = DergEssenceDB.options.barSpacing
         
         for i = 1, MAX_EVOKER_ESSENCE do
             local bar = CreateFrame("Frame", "DergEssenceBar" .. i, self.mainFrame)
@@ -204,50 +232,59 @@ function DergEssence:CreateEssenceDisplay()
             -- Create background (black when essence not available)
             bar.background = bar:CreateTexture(nil, "BACKGROUND")
             bar.background:SetAllPoints()
-            bar.background:SetColorTexture(0, 0, 0, 1)  -- Black
+            bar.background:SetColorTexture(
+                DergEssenceDB.options.emptyColor.r,
+                DergEssenceDB.options.emptyColor.g,
+                DergEssenceDB.options.emptyColor.b,
+                DergEssenceDB.options.emptyColor.a
+            )
             
             -- Create border frame using four edge textures
+            local borderThickness = DergEssenceDB.options.borderThickness
+            local borderColor = DergEssenceDB.options.borderColor
+            
             -- Top border
             bar.borderTop = bar:CreateTexture(nil, "BORDER")
             bar.borderTop:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
             bar.borderTop:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
-            bar.borderTop:SetHeight(1)
-            bar.borderTop:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderTop:SetHeight(borderThickness)
+            bar.borderTop:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Bottom border
             bar.borderBottom = bar:CreateTexture(nil, "BORDER")
             bar.borderBottom:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
             bar.borderBottom:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
-            bar.borderBottom:SetHeight(1)
-            bar.borderBottom:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderBottom:SetHeight(borderThickness)
+            bar.borderBottom:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Left border
             bar.borderLeft = bar:CreateTexture(nil, "BORDER")
             bar.borderLeft:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
             bar.borderLeft:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
-            bar.borderLeft:SetWidth(1)
-            bar.borderLeft:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderLeft:SetWidth(borderThickness)
+            bar.borderLeft:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Right border
             bar.borderRight = bar:CreateTexture(nil, "BORDER")
             bar.borderRight:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
             bar.borderRight:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
-            bar.borderRight:SetWidth(1)
-            bar.borderRight:SetColorTexture(0.5, 0.5, 0.5, 1)
+            bar.borderRight:SetWidth(borderThickness)
+            bar.borderRight:SetColorTexture(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
             
             -- Create fill texture (light blue when essence available)
+            local filledColor = DergEssenceDB.options.filledColor
             bar.fill = bar:CreateTexture(nil, "ARTWORK")
-            bar.fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-            bar.fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -1, 1)
-            bar.fill:SetColorTexture(ESSENCE_COLOR.r, ESSENCE_COLOR.g, ESSENCE_COLOR.b, ESSENCE_COLOR.a)
+            bar.fill:SetPoint("TOPLEFT", bar, "TOPLEFT", borderThickness, -borderThickness)
+            bar.fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -borderThickness, borderThickness)
+            bar.fill:SetColorTexture(filledColor.r, filledColor.g, filledColor.b, filledColor.a)
             bar.fill:Hide()  -- Initially hidden
             
             -- Create partial fill texture for recharging essence
             bar.partialFill = bar:CreateTexture(nil, "ARTWORK")
-            bar.partialFill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-            bar.partialFill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
+            bar.partialFill:SetPoint("TOPLEFT", bar, "TOPLEFT", borderThickness, -borderThickness)
+            bar.partialFill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", borderThickness, borderThickness)
             bar.partialFill:SetWidth(0)  -- Initially zero width
-            bar.partialFill:SetColorTexture(ESSENCE_COLOR.r, ESSENCE_COLOR.g, ESSENCE_COLOR.b, ESSENCE_COLOR.a)
+            bar.partialFill:SetColorTexture(filledColor.r, filledColor.g, filledColor.b, filledColor.a)
             bar.partialFill:Hide()  -- Initially hidden
             
             self.essenceBars[i] = bar
@@ -271,6 +308,11 @@ function DergEssence:UpdateEssence()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
+    -- Initialize API sync counter if not exists
+    if not self.apiSyncCounter then
+        self.apiSyncCounter = 0
+    end
+    
     -- Track essence count changes and handle progress carryover
     if not self.lastEssenceCount or self.lastEssenceCount ~= currentEssence then
         local essenceChanged = self.lastEssenceCount ~= nil
@@ -278,27 +320,37 @@ function DergEssence:UpdateEssence()
         local essenceGained = essenceChanged and currentEssence > self.lastEssenceCount
         local wasAtMax = self.lastEssenceCount and self.lastEssenceCount >= maxEssence
         
+        -- Increment sync counter on essence change
+        if essenceChanged then
+            self.apiSyncCounter = self.apiSyncCounter + 1
+        end
+        
+        -- Determine if we should sync with API this time
+        local shouldSync = (self.apiSyncCounter % API_SYNC_FREQUENCY == 0) or not essenceChanged or wasAtMax
+        
         -- Hide any active partial fills when essence count changes to prevent race conditions
         if self.lastRechargingIndex and self.lastRechargingIndex <= #self.essenceBars then
             self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
             self.lastRechargingIndex = nil
         end
         
-        -- When essence is gained from API, ALWAYS reset timer to resync with server ground truth
-        -- When essence is spent from max, reset timer (no progress to carry over)
-        -- When essence is spent from partial, keep timer (carry over progress)
-        -- On first initialization, reset timer
-        if essenceGained or wasAtMax or not essenceChanged then
+        -- Only resync timer with API periodically to work around API bugs
+        -- Reset timer when: syncing with API on schedule, spent from max, or first initialization
+        if (essenceGained and shouldSync) or wasAtMax or not essenceChanged then
             self.lastEssenceTime = GetTime()
+            -- When syncing, update our tracked count
+            self.lastEssenceCount = currentEssence
         elseif essenceSpent then
             -- Essence spent from partial state - carry over progress (don't reset timer)
             -- Timer stays as is to maintain recharge progress
+            self.lastEssenceCount = currentEssence
+        elseif essenceGained and not shouldSync then
+            -- Essence gained but not syncing - ignore API update to avoid desyncing our predictive tracking
+            -- Don't update lastEssenceCount - we'll use our predictive count instead
         end
-        
-        self.lastEssenceCount = currentEssence
     end
     
-    -- Update each essence bar
+    -- Update each essence bar based on API count
     for i = 1, #self.essenceBars do
         local bar = self.essenceBars[i]
         
@@ -345,8 +397,18 @@ function DergEssence:UpdateRechargeProgress()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
+    -- Use tracked count for display (may be different from API due to predictive tracking)
+    local displayEssence = self.lastEssenceCount or currentEssence
+    
+    -- If API shows more essence than our tracking, sync up to avoid showing empty bars
+    if currentEssence > displayEssence then
+        displayEssence = currentEssence
+        self.lastEssenceCount = currentEssence
+        self.lastEssenceTime = GetTime()
+    end
+    
     -- Check if we should show recharging essence
-    local showRecharging = currentEssence < maxEssence
+    local showRecharging = displayEssence < maxEssence
     
     if showRecharging and self.lastEssenceTime then
         -- Calculate actual recharge time based on haste
@@ -363,11 +425,37 @@ function DergEssence:UpdateRechargeProgress()
         -- Calculate recharge progress
         local currentTime = GetTime()
         local timeSinceLastEssence = currentTime - self.lastEssenceTime
-        -- Cap progress at 100% to prevent visual anomalies while waiting for server confirmation
-        local rechargingProgress = math.min(1, timeSinceLastEssence / actualRechargeTime)
+        -- Allow progress beyond 100% for predictive tracking
+        local rechargingProgress = timeSinceLastEssence / actualRechargeTime
+        
+        -- Handle overflow when essence completes charging
+        if rechargingProgress >= 1.0 then
+            -- Predictively increment our tracked count
+            local essenceToAdd = math.floor(rechargingProgress)
+            
+            -- Don't get too far ahead of API - cap at 1 ahead to avoid desync issues
+            essenceToAdd = math.min(essenceToAdd, 1)
+            
+            displayEssence = displayEssence + essenceToAdd
+            
+            -- Cap at max essence
+            if displayEssence > maxEssence then
+                displayEssence = maxEssence
+                rechargingProgress = 0
+                showRecharging = false
+            else
+                -- Carry over remaining progress to next bar
+                rechargingProgress = rechargingProgress - essenceToAdd
+                -- Update our time reference for the new bar
+                self.lastEssenceTime = self.lastEssenceTime + (essenceToAdd * actualRechargeTime)
+            end
+            
+            -- Update tracked count
+            self.lastEssenceCount = displayEssence
+        end
         
         -- Show partial fill on the next essence to recharge
-        local rechargingIndex = currentEssence + 1
+        local rechargingIndex = displayEssence + 1
         
         -- Re-query essence to detect race conditions with spell casts
         local currentEssenceCheck = UnitPower("player", ESSENCE_POWER_TYPE)
@@ -395,12 +483,21 @@ function DergEssence:UpdateRechargeProgress()
             self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
         end
         
-        if rechargingIndex <= maxEssence then
+        if showRecharging and rechargingIndex <= maxEssence then
             local bar = self.essenceBars[rechargingIndex]
-            local fillWidth = (bar:GetWidth() - 2) * rechargingProgress  -- Account for border
+            local borderThickness = DergEssenceDB.options.borderThickness
+            local fillWidth = (bar:GetWidth() - 2 * borderThickness) * rechargingProgress  -- Account for border
             bar.partialFill:SetWidth(fillWidth)
             bar.partialFill:Show()
             self.lastRechargingIndex = rechargingIndex
+            
+            -- Update display to show predictively filled bars
+            for i = 1, rechargingIndex - 1 do
+                if i > currentEssence and i <= displayEssence then
+                    self.essenceBars[i].fill:Show()
+                    self.essenceBars[i].partialFill:Hide()
+                end
+            end
         end
     else
         -- Hide the last recharging bar when at max essence
@@ -414,9 +511,261 @@ end
 -- Helper function to get the rank of a talent by name
 -- Returns the number of points invested in the talent (0 if not taken)
 
+-- Recreate essence display with new settings
+function DergEssence:RecreateEssenceDisplay()
+    if self.mainFrame then
+        -- Store the current state
+        local wasShown = self.mainFrame:IsShown()
+        
+        -- Destroy the old frame
+        self.mainFrame:Hide()
+        self.mainFrame:SetScript("OnUpdate", nil)
+        for i = 1, #self.essenceBars do
+            self.essenceBars[i]:Hide()
+        end
+        self.mainFrame = nil
+        self.essenceBars = nil
+        self.lastRechargingIndex = nil
+        
+        -- Recreate with new settings
+        self:CreateEssenceDisplay()
+        
+        -- Restore state
+        if wasShown and DergEssenceDB.enabled then
+            self.mainFrame:Show()
+            self:UpdateEssence()
+        else
+            self.mainFrame:Hide()
+        end
+    end
+end
+
+-- Create options window
+function DergEssence:CreateOptionsWindow()
+    if self.optionsFrame then
+        return
+    end
+    
+    local frame = CreateFrame("Frame", "DergEssenceOptionsFrame", UIParent, "BasicFrameTemplateWithInset")
+    self.optionsFrame = frame
+    frame:SetSize(400, 600)
+    frame:SetPoint("CENTER")
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:Hide()
+    
+    -- Title
+    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.title:SetPoint("TOP", 0, -5)
+    frame.title:SetText("DergEssence Options")
+    
+    -- Debounce timer for applying changes
+    local applyTimer = nil
+    local function scheduleApply()
+        if applyTimer then
+            applyTimer:Cancel()
+        end
+        applyTimer = C_Timer.NewTimer(0.1, function()
+            DergEssence:RecreateEssenceDisplay()
+            applyTimer = nil
+        end)
+    end
+    
+    local yOffset = -30
+    
+    -- Helper function to create section headers
+    local function createSectionHeader(text)
+        local header = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        header:SetPoint("TOPLEFT", 20, yOffset)
+        header:SetText(text)
+        yOffset = yOffset - 25
+        return header
+    end
+    
+    local function createSlider(label, key, minVal, maxVal, step)
+        local slider = CreateFrame("Slider", "DergEssenceSlider_" .. key, frame, "OptionsSliderTemplate")
+        slider:SetPoint("TOPLEFT", 20, yOffset)
+        slider:SetWidth(350)
+        slider:SetMinMaxValues(minVal, maxVal)
+        slider:SetValueStep(step)
+        slider:SetObeyStepOnDrag(true)
+        
+        -- Get current value
+        local currentValue = DergEssenceDB.options[key]
+        slider:SetValue(currentValue)
+        
+        -- Label
+        slider.label = slider:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        slider.label:SetPoint("BOTTOM", slider, "TOP", 0, 0)
+        slider.label:SetText(label)
+        
+        -- Value display
+        slider.valueText = slider:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        slider.valueText:SetPoint("TOP", slider, "BOTTOM", 0, 0)
+        slider.valueText:SetText(string.format("%.1f", currentValue))
+        
+        -- Update on value change with debounced apply
+        slider:SetScript("OnValueChanged", function(self, value)
+            DergEssenceDB.options[key] = value
+            self.valueText:SetText(string.format("%.1f", value))
+            -- Apply changes with debounce
+            scheduleApply()
+        end)
+        
+        yOffset = yOffset - 60
+        return slider
+    end
+    
+    local function createSliderWithTextbox(label, key, minVal, maxVal, step)
+        local slider = CreateFrame("Slider", "DergEssenceSlider_" .. key, frame, "OptionsSliderTemplate")
+        slider:SetPoint("TOPLEFT", 20, yOffset)
+        slider:SetWidth(350)
+        slider:SetMinMaxValues(minVal, maxVal)
+        slider:SetValueStep(step)
+        slider:SetObeyStepOnDrag(true)
+        
+        -- Get current value
+        local currentValue = DergEssenceDB.options[key]
+        slider:SetValue(currentValue)
+        
+        -- Label
+        slider.label = slider:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        slider.label:SetPoint("BOTTOM", slider, "TOP", 0, 0)
+        slider.label:SetText(label)
+        
+        -- Editable textbox for value input
+        local editBox = CreateFrame("EditBox", "DergEssenceEditBox_" .. key, frame, "InputBoxTemplate")
+        editBox:SetPoint("TOP", slider, "BOTTOM", 0, -5)
+        editBox:SetSize(60, 20)
+        editBox:SetAutoFocus(false)
+        editBox:SetText(string.format("%.0f", currentValue))
+        
+        -- Update slider when editbox value changes
+        editBox:SetScript("OnEnterPressed", function(self)
+            local value = tonumber(self:GetText())
+            if value then
+                -- Clamp value to min/max
+                value = math.max(minVal, math.min(maxVal, value))
+                DergEssenceDB.options[key] = value
+                slider:SetValue(value)
+                self:SetText(string.format("%.0f", value))
+                scheduleApply()
+            else
+                -- Invalid input, restore previous value
+                self:SetText(string.format("%.0f", DergEssenceDB.options[key]))
+            end
+            self:ClearFocus()
+        end)
+        
+        editBox:SetScript("OnEscapePressed", function(self)
+            self:SetText(string.format("%.0f", DergEssenceDB.options[key]))
+            self:ClearFocus()
+        end)
+        
+        -- Update on slider value change
+        slider:SetScript("OnValueChanged", function(self, value)
+            DergEssenceDB.options[key] = value
+            editBox:SetText(string.format("%.0f", value))
+            -- Apply changes with debounce
+            scheduleApply()
+        end)
+        
+        yOffset = yOffset - 60
+        return slider
+    end
+    
+    local function createColorPicker(label, key)
+        local button = CreateFrame("Button", "DergEssenceColorPicker_" .. key, frame, "UIPanelButtonTemplate")
+        button:SetPoint("TOPLEFT", 20, yOffset)
+        button:SetSize(120, 25)
+        button:SetText("Pick Color")
+        
+        -- Label
+        button.label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        button.label:SetPoint("BOTTOMLEFT", button, "TOPLEFT", 0, 5)
+        button.label:SetText(label)
+        
+        -- Color preview
+        button.colorSwatch = button:CreateTexture(nil, "OVERLAY")
+        button.colorSwatch:SetSize(40, 25)
+        button.colorSwatch:SetPoint("LEFT", button, "RIGHT", 10, 0)
+        local color = DergEssenceDB.options[key]
+        button.colorSwatch:SetColorTexture(color.r, color.g, color.b, color.a)
+        
+        button:SetScript("OnClick", function(self)
+            local color = DergEssenceDB.options[key]
+            -- Store original values for cancel
+            local originalR, originalG, originalB, originalA = color.r, color.g, color.b, color.a
+            
+            -- Shared function for updating color
+            local function updateColor()
+                local r, g, b = ColorPickerFrame:GetColorRGB()
+                local a = ColorPickerFrame:GetColorAlpha()
+                DergEssenceDB.options[key].r = r
+                DergEssenceDB.options[key].g = g
+                DergEssenceDB.options[key].b = b
+                DergEssenceDB.options[key].a = a
+                self.colorSwatch:SetColorTexture(r, g, b, a)
+                -- Apply changes with debounce
+                scheduleApply()
+            end
+            
+            ColorPickerFrame:SetupColorPickerAndShow({
+                r = color.r,
+                g = color.g,
+                b = color.b,
+                opacity = color.a,
+                hasOpacity = true,
+                swatchFunc = updateColor,
+                opacityFunc = updateColor,
+                cancelFunc = function()
+                    DergEssenceDB.options[key].r = originalR
+                    DergEssenceDB.options[key].g = originalG
+                    DergEssenceDB.options[key].b = originalB
+                    DergEssenceDB.options[key].a = originalA
+                    self.colorSwatch:SetColorTexture(originalR, originalG, originalB, originalA)
+                    -- Restore original appearance
+                    DergEssence:RecreateEssenceDisplay()
+                end,
+            })
+        end)
+        
+        yOffset = yOffset - 50
+        return button
+    end
+    
+    -- Appearance Section
+    createSectionHeader("Appearance")
+    createSlider("Bar Width", "barWidth", 50, 200, 5)
+    createSlider("Bar Height", "barHeight", 10, 50, 1)
+    createSlider("Bar Spacing", "barSpacing", 0, 20, 1)
+    createSlider("Border Thickness", "borderThickness", 0, 5, 1)
+    
+    createColorPicker("Filled Color", "filledColor")
+    createColorPicker("Empty Color", "emptyColor")
+    createColorPicker("Border Color", "borderColor")
+    
+    -- Position Section
+    createSectionHeader("Position")
+    createSliderWithTextbox("Horizontal Position", "xPosition", -500, 500, 5)
+    createSliderWithTextbox("Vertical Position", "yPosition", -500, 500, 5)
+end
+
+-- Show options window
+function DergEssence:ShowOptions()
+    if not self.optionsFrame then
+        self:CreateOptionsWindow()
+    end
+    self.optionsFrame:Show()
+end
+
 -- Slash command handler
 SLASH_DERGESSENCE1 = "/dergessence"
 SLASH_DERGESSENCE2 = "/de"
+SLASH_DERGESSENCE3 = "/derge"
 SlashCmdList["DERGESSENCE"] = function(msg)
     local cmd = string.lower(msg or "")
     
@@ -430,9 +779,8 @@ SlashCmdList["DERGESSENCE"] = function(msg)
             DergEssence:OnDisable()
         end
     else
-        print("|cFF00FF00DergEssence|r v" .. DergEssence.version)
-        print("Commands:")
-        print("  /dergessence toggle - Toggle addon on/off")
+        -- Show options window
+        DergEssence:ShowOptions()
     end
 end
 

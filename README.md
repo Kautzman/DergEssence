@@ -9,7 +9,9 @@ DergEssence is a WoW addon designed specifically for Evoker class players to hel
 ## Features
 
 - Essence tracking for Evoker class
-- Slash commands for easy configuration
+- Visual essence bars with customizable appearance
+- Configurable options window with live preview
+- Adjustable position on screen
 - Persistent settings across sessions
 
 ## Installation
@@ -24,8 +26,27 @@ DergEssence is a WoW addon designed specifically for Evoker class players to hel
 
 ### Slash Commands
 
-- `/dergessence` or `/de` - Display addon information and available commands
+- `/dergessence`, `/derge`, or `/de` - Open the options window
 - `/dergessence toggle` or `/de toggle` - Enable or disable the addon
+
+### Options Window
+
+The options window allows you to customize the appearance and position of the essence bars:
+
+**Appearance Section:**
+- Bar Width: Adjust the width of each essence bar (50-200)
+- Bar Height: Adjust the height of each essence bar (10-50)
+- Bar Spacing: Set the gap between bars (0-20)
+- Border Thickness: Set the thickness of bar borders (0-5)
+- Filled Color: Choose the color when essence is available
+- Empty Color: Choose the background color when essence is empty
+- Border Color: Choose the color of bar borders
+
+**Position Section:**
+- Horizontal Position: Move the bars left/right (-500 to 500) - use the slider or type a value directly
+- Vertical Position: Move the bars up/down (-500 to 500) - use the slider or type a value directly
+
+All changes are applied immediately as you adjust them, providing live visual feedback.
 
 ## Requirements
 
