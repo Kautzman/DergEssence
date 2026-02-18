@@ -19,6 +19,7 @@ local BASE_RECHARGE_TIME = 5.0  -- Base time in seconds for essence to recharge
 local ESSENCE_COLOR = {r = 0.4, g = 0.7, b = 1.0, a = 1.0}  -- Light blue color for essence bars
 local INNATE_MAGIC_TALENT_NAME = 375520  -- Talent name for essence regen bonus
 local INNATE_MAGIC_BONUS_PER_RANK = 0.05  -- 5% bonus per rank (5% for 1 point, 10% for 2 points)
+local API_SYNC_FREQUENCY = 20  -- Sync with API every Nth essence event
 
 -- Frame for event handling
 local frame = CreateFrame("Frame")
@@ -307,6 +308,11 @@ function DergEssence:UpdateEssence()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
+    -- Initialize API sync counter if not exists
+    if not self.apiSyncCounter then
+        self.apiSyncCounter = 0
+    end
+    
     -- Track essence count changes and handle progress carryover
     if not self.lastEssenceCount or self.lastEssenceCount ~= currentEssence then
         local essenceChanged = self.lastEssenceCount ~= nil
@@ -314,27 +320,37 @@ function DergEssence:UpdateEssence()
         local essenceGained = essenceChanged and currentEssence > self.lastEssenceCount
         local wasAtMax = self.lastEssenceCount and self.lastEssenceCount >= maxEssence
         
+        -- Increment sync counter on essence change
+        if essenceChanged then
+            self.apiSyncCounter = self.apiSyncCounter + 1
+        end
+        
+        -- Determine if we should sync with API this time
+        local shouldSync = (self.apiSyncCounter % API_SYNC_FREQUENCY == 0) or not essenceChanged or wasAtMax
+        
         -- Hide any active partial fills when essence count changes to prevent race conditions
         if self.lastRechargingIndex and self.lastRechargingIndex <= #self.essenceBars then
             self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
             self.lastRechargingIndex = nil
         end
         
-        -- When essence is gained from API, ALWAYS reset timer to resync with server ground truth
-        -- When essence is spent from max, reset timer (no progress to carry over)
-        -- When essence is spent from partial, keep timer (carry over progress)
-        -- On first initialization, reset timer
-        if essenceGained or wasAtMax or not essenceChanged then
+        -- Only resync timer with API periodically to work around API bugs
+        -- Reset timer when: syncing with API on schedule, spent from max, or first initialization
+        if (essenceGained and shouldSync) or wasAtMax or not essenceChanged then
             self.lastEssenceTime = GetTime()
+            -- When syncing, update our tracked count
+            self.lastEssenceCount = currentEssence
         elseif essenceSpent then
             -- Essence spent from partial state - carry over progress (don't reset timer)
             -- Timer stays as is to maintain recharge progress
+            self.lastEssenceCount = currentEssence
+        elseif essenceGained and not shouldSync then
+            -- Essence gained but not syncing - ignore API update to avoid desyncing our predictive tracking
+            -- Don't update lastEssenceCount - we'll use our predictive count instead
         end
-        
-        self.lastEssenceCount = currentEssence
     end
     
-    -- Update each essence bar
+    -- Update each essence bar based on API count
     for i = 1, #self.essenceBars do
         local bar = self.essenceBars[i]
         
@@ -381,8 +397,11 @@ function DergEssence:UpdateRechargeProgress()
     local currentEssence = UnitPower("player", ESSENCE_POWER_TYPE)
     local maxEssence = UnitPowerMax("player", ESSENCE_POWER_TYPE)
     
+    -- Use tracked count for display (may be different from API due to predictive tracking)
+    local displayEssence = self.lastEssenceCount or currentEssence
+    
     -- Check if we should show recharging essence
-    local showRecharging = currentEssence < maxEssence
+    local showRecharging = displayEssence < maxEssence
     
     if showRecharging and self.lastEssenceTime then
         -- Calculate actual recharge time based on haste
@@ -399,11 +418,33 @@ function DergEssence:UpdateRechargeProgress()
         -- Calculate recharge progress
         local currentTime = GetTime()
         local timeSinceLastEssence = currentTime - self.lastEssenceTime
-        -- Cap progress at 100% to prevent visual anomalies while waiting for server confirmation
-        local rechargingProgress = math.min(1, timeSinceLastEssence / actualRechargeTime)
+        -- Allow progress beyond 100% for predictive tracking
+        local rechargingProgress = timeSinceLastEssence / actualRechargeTime
+        
+        -- Handle overflow when essence completes charging
+        if rechargingProgress >= 1.0 then
+            -- Predictively increment our tracked count
+            local essenceToAdd = math.floor(rechargingProgress)
+            displayEssence = displayEssence + essenceToAdd
+            
+            -- Cap at max essence
+            if displayEssence > maxEssence then
+                displayEssence = maxEssence
+                rechargingProgress = 0
+                showRecharging = false
+            else
+                -- Carry over remaining progress to next bar
+                rechargingProgress = rechargingProgress - essenceToAdd
+                -- Update our time reference for the new bar
+                self.lastEssenceTime = self.lastEssenceTime + (essenceToAdd * actualRechargeTime)
+            end
+            
+            -- Update tracked count
+            self.lastEssenceCount = displayEssence
+        end
         
         -- Show partial fill on the next essence to recharge
-        local rechargingIndex = currentEssence + 1
+        local rechargingIndex = displayEssence + 1
         
         -- Re-query essence to detect race conditions with spell casts
         local currentEssenceCheck = UnitPower("player", ESSENCE_POWER_TYPE)
@@ -431,13 +472,21 @@ function DergEssence:UpdateRechargeProgress()
             self.essenceBars[self.lastRechargingIndex].partialFill:Hide()
         end
         
-        if rechargingIndex <= maxEssence then
+        if showRecharging and rechargingIndex <= maxEssence then
             local bar = self.essenceBars[rechargingIndex]
             local borderThickness = DergEssenceDB.options.borderThickness
             local fillWidth = (bar:GetWidth() - 2 * borderThickness) * rechargingProgress  -- Account for border
             bar.partialFill:SetWidth(fillWidth)
             bar.partialFill:Show()
             self.lastRechargingIndex = rechargingIndex
+            
+            -- Update display to show predictively filled bars
+            for i = 1, rechargingIndex - 1 do
+                if i > currentEssence and i <= displayEssence then
+                    self.essenceBars[i].fill:Show()
+                    self.essenceBars[i].partialFill:Hide()
+                end
+            end
         end
     else
         -- Hide the last recharging bar when at max essence
