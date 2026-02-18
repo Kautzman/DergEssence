@@ -400,6 +400,13 @@ function DergEssence:UpdateRechargeProgress()
     -- Use tracked count for display (may be different from API due to predictive tracking)
     local displayEssence = self.lastEssenceCount or currentEssence
     
+    -- If API shows more essence than our tracking, sync up to avoid showing empty bars
+    if currentEssence > displayEssence then
+        displayEssence = currentEssence
+        self.lastEssenceCount = currentEssence
+        self.lastEssenceTime = GetTime()
+    end
+    
     -- Check if we should show recharging essence
     local showRecharging = displayEssence < maxEssence
     
@@ -425,6 +432,10 @@ function DergEssence:UpdateRechargeProgress()
         if rechargingProgress >= 1.0 then
             -- Predictively increment our tracked count
             local essenceToAdd = math.floor(rechargingProgress)
+            
+            -- Don't get too far ahead of API - cap at 1 ahead to avoid desync issues
+            essenceToAdd = math.min(essenceToAdd, 1)
+            
             displayEssence = displayEssence + essenceToAdd
             
             -- Cap at max essence
